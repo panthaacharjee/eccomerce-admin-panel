@@ -385,7 +385,7 @@ export default function ProductCreate({
     <>
       {/* Overlay */}
       <div
-        className="fixed inset-0 bg-black bg-opacity-50 z-50 transition-opacity"
+        className="fixed inset-0 h-screen bg-black bg-opacity-50 z-50 transition-opacity"
         onClick={onClose}
       />
 
@@ -449,8 +449,8 @@ export default function ProductCreate({
                             setMobileMenuOpen(false);
                           }}
                           className={`w-full flex items-center px-4 py-3 text-sm transition-colors ${isActive
-                              ? "bg-gray-900 text-white"
-                              : "text-gray-700 hover:bg-gray-100"
+                            ? "bg-gray-900 text-white"
+                            : "text-gray-700 hover:bg-gray-100"
                             }`}
                         >
                           <Icon className="w-4 h-4 mr-3" />
@@ -476,8 +476,8 @@ export default function ProductCreate({
                           key={section.id}
                           onClick={() => setActiveSection(section.id)}
                           className={`w-full flex items-center px-3 py-2.5 text-sm rounded-lg transition-colors ${activeSection === section.id
-                              ? "bg-gray-900 text-white"
-                              : "text-gray-700 hover:bg-gray-200"
+                            ? "bg-gray-900 text-white"
+                            : "text-gray-700 hover:bg-gray-200"
                             }`}
                         >
                           <Icon className="w-4 h-4 mr-3" />
@@ -1159,8 +1159,8 @@ export default function ProductCreate({
                                         type="button"
                                         onClick={() => setPrimaryImage(index)}
                                         className={`p-2 rounded-full transition-colors ${image.is_primary
-                                            ? "bg-yellow-500 text-white"
-                                            : "bg-white hover:bg-gray-200 text-gray-900"
+                                          ? "bg-yellow-500 text-white"
+                                          : "bg-white hover:bg-gray-200 text-gray-900"
                                           }`}
                                         title={
                                           image.is_primary
@@ -1399,7 +1399,7 @@ export default function ProductCreate({
                     </div>
                   )}
 
-                  {/* Categories & Tags Section - UPDATED */}
+                  {/* Categories & Tags Section - FIXED */}
                   {activeSection === "categories" && (
                     <div className="space-y-8">
                       <div>
@@ -1461,16 +1461,8 @@ export default function ProductCreate({
                                       (cat.main_label || cat.title || cat.name) === categoriesData.main_category
                                     );
 
-                                    // Get sub categories array - handle different possible structures
-                                    let subCategories = [];
-
-                                    if (selectedMainCat?.sub_label && Array.isArray(selectedMainCat.sub_label)) {
-                                      subCategories = selectedMainCat.sub_label;
-                                    } else if (selectedMainCat?.sub_categories && Array.isArray(selectedMainCat.sub_categories)) {
-                                      subCategories = selectedMainCat.sub_categories;
-                                    } else if (selectedMainCat?.children && Array.isArray(selectedMainCat.children)) {
-                                      subCategories = selectedMainCat.children;
-                                    }
+                                    // Get sub categories array from sub_label (FIXED: using sub_label instead of sub_categories)
+                                    let subCategories = selectedMainCat?.sub_label || [];
 
                                     // Map through sub categories
                                     return subCategories.map((subItem: any, index: number) => {

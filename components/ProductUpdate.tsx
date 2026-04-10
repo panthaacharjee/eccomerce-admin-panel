@@ -34,6 +34,7 @@ import {
   Link as LinkIcon,
   Copy,
   StarOff,
+  Menu,
 } from "lucide-react";
 
 import RichTextEditor from "./RichTextEditor";
@@ -64,7 +65,7 @@ interface ProductUpdateFormProps {
 }
 
 // Sample data for dropdowns
-const currencies = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD"];
+const currencies = ["BDT", "USD", "EUR", "GBP", "JPY", "CAD", "AUD"];
 const weightUnits = ["kg", "g", "lb", "oz"];
 const dimensionUnits = ["cm", "m", "in", "ft"];
 const statusOptions = ["draft", "published", "archived"];
@@ -93,6 +94,7 @@ export default function ProductUpdateForm({
 
   const [isFetching, setIsFetching] = useState(false);
   const [activeSection, setActiveSection] = useState("basic");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [images, setImages] = useState<
     Array<{
       file?: File;
@@ -116,7 +118,7 @@ export default function ProductUpdateForm({
     }>
   >([]);
 
-  // Categories state - object for main and sub category (SAME AS CREATE FORM)
+  // Categories state - object for main and sub category
   const [categoriesData, setCategoriesData] = useState({
     main_category: "",
     sub_category: "",
@@ -140,7 +142,7 @@ export default function ProductUpdateForm({
     // Pricing
     price: "",
     cost_price: "",
-    currency: "USD",
+    currency: "BDT",
 
     // Inventory
     stock_quantity: "",
@@ -201,14 +203,14 @@ export default function ProductUpdateForm({
 
         // Set form data
         setFormData({
-          title: product.title,
-          description: product.description,
-          sku: product.sku,
+          title: product.title || "",
+          description: product.description || "",
+          sku: product.sku || "",
           ean: product.ean || "",
-          price: product.price.toString(),
+          price: product.price?.toString() || "",
           cost_price: product.cost_price?.toString() || "",
-          currency: product.currency,
-          stock_quantity: product.stock_quantity.toString(),
+          currency: product.currency || "BDT",
+          stock_quantity: product.stock_quantity?.toString() || "",
           weight: product.weight || "",
           weight_unit: product.weight_unit || "kg",
           dimensions: product.dimensions || {
@@ -219,38 +221,44 @@ export default function ProductUpdateForm({
           },
           meta_title: product.meta_title || "",
           meta_description: product.meta_description || "",
-          status: product.status,
-          visibility: product.visibility,
+          status: product.status || "draft",
+          visibility: product.visibility || "visible",
         });
 
         // Set images
-        setImages(
-          product.images.map((img: any) => ({
-            preview: img.url,
-            is_primary: img.isPrimary || img.is_primary || false,
-            public_id: img.public_id,
-          })),
-        );
+        if (product.images && Array.isArray(product.images)) {
+          setImages(
+            product.images.map((img: any) => ({
+              preview: img.url,
+              is_primary: img.isPrimary || img.is_primary || false,
+              public_id: img.public_id,
+            }))
+          );
+        }
 
         // Set sizes
-        setSizes(
-          product.sizes.map((size: any) => ({
-            title: size.label || size.title || "",
-            price: size.price || 0,
-            stock_quantity: size.stockQuantity || size.stock_quantity || 0,
-          })) || [],
-        );
+        if (product.sizes && Array.isArray(product.sizes)) {
+          setSizes(
+            product.sizes.map((size: any) => ({
+              title: size.label || size.title || "",
+              price: size.price || 0,
+              stock_quantity: size.stockQuantity || size.stock_quantity || 0,
+            }))
+          );
+        }
 
         // Set colors
-        setColors(
-          product.colors?.map((color: any) => ({
-            title: color.name || color.title || "",
-            price: color.price || 0,
-            stock_quantity: color.stockQuantity || color.stock_quantity || 0,
-          })) || [],
-        );
+        if (product.colors && Array.isArray(product.colors)) {
+          setColors(
+            product.colors.map((color: any) => ({
+              title: color.name || color.title || "",
+              price: color.price || 0,
+              stock_quantity: color.stockQuantity || color.stock_quantity || 0,
+            }))
+          );
+        }
 
-        // Set categories - Convert from array to single object (SAME AS CREATE FORM)
+        // Set categories
         if (product.categories && product.categories.length > 0) {
           const category = product.categories[0];
           setCategoriesData({
@@ -297,7 +305,7 @@ export default function ProductUpdateForm({
     }
 
     try {
-      new URL(thumbnailLink); // Validate URL
+      new URL(thumbnailLink);
       const newImage = {
         preview: thumbnailLink,
         is_primary: images.length === 0,
@@ -319,7 +327,6 @@ export default function ProductUpdateForm({
         URL.revokeObjectURL(newImages[index].preview);
       }
       newImages.splice(index, 1);
-      // If primary was removed, set first image as primary
       if (newImages.length > 0 && index === 0) {
         newImages[0].is_primary = true;
       }
@@ -416,7 +423,6 @@ export default function ProductUpdateForm({
   ) => {
     const { name, value } = e.target;
 
-    // Clear error for this field
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
@@ -439,6 +445,7 @@ export default function ProductUpdateForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!productId) return;
 
     // Validate categories
@@ -449,15 +456,16 @@ export default function ProductUpdateForm({
 
     try {
       dispatch(ProductUpdateRequest());
+
+      const primaryImage = images.find((img) => img.is_primary) || images[0];
+
       const productData = {
         title: formData.title,
         description: formData.description,
         sku: formData.sku,
         ean: formData.ean || undefined,
         price: parseFloat(formData.price),
-        cost_price: formData.cost_price
-          ? parseFloat(formData.cost_price)
-          : undefined,
+        cost_price: formData.cost_price ? parseFloat(formData.cost_price) : undefined,
         currency: formData.currency,
         stock_quantity: parseInt(formData.stock_quantity),
         weight: formData.weight || undefined,
@@ -478,11 +486,8 @@ export default function ProductUpdateForm({
           is_primary: img.is_primary || index === 0,
           public_id: img.public_id || `product_${Date.now()}_${index}`,
         })),
-        thumbnail:
-          images.find((img) => img.is_primary)?.preview ||
-          images[0]?.preview ||
-          "",
-        categories: categoriesData, // Send as single object (SAME AS CREATE FORM)
+        thumbnail: primaryImage?.preview || "",
+        categories: categoriesData,
         sizes,
         colors: colors.length > 0 ? colors : undefined,
         updatedAt: new Date(),
@@ -505,8 +510,7 @@ export default function ProductUpdateForm({
         onClose();
       }
     } catch (err: any) {
-      const errorMessage =
-        err.response?.data?.message || "Failed to update product";
+      const errorMessage = err.response?.data?.message || "Failed to update product";
       dispatch(ProductCreateFail(errorMessage));
       toast.error(errorMessage);
     }
@@ -527,7 +531,7 @@ export default function ProductUpdateForm({
       ean: "",
       price: "",
       cost_price: "",
-      currency: "USD",
+      currency: "BDT",
       stock_quantity: "",
       weight: "",
       weight_unit: "kg",
@@ -624,20 +628,18 @@ export default function ProductUpdateForm({
 
       {/* Modal */}
       <div className="fixed inset-0 z-50 overflow-y-auto">
-        <div className="flex min-h-full items-center justify-center p-4">
+        <div className="flex min-h-full items-center justify-center p-2 sm:p-4">
           <div
-            className="relative bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden border border-gray-200"
+            className="relative bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden border border-gray-200 flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="sticky top-0 bg-white border-b border-gray-300 px-8 py-6 z-10">
+            <div className="sticky top-0 bg-white border-b border-gray-300 px-4 sm:px-8 py-4 sm:py-6 z-10 flex-shrink-0">
               <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-2xl font-bold text-gray-900 truncate">
-                      {isFetching
-                        ? "Loading Product..."
-                        : `Update Product: ${formData.sku}`}
+                <div>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                      {isFetching ? "Loading Product..." : `Update Product`}
                     </h2>
                     {hasUnsavedChanges && (
                       <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
@@ -645,26 +647,13 @@ export default function ProductUpdateForm({
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-4 mt-1">
-                    <p className="text-sm text-gray-600">
-                      Update product details and information
-                    </p>
-                    {productId && (
-                      <a
-                        href={`/products/${productId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline"
-                      >
-                        View Live Product
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    )}
-                  </div>
+                  <p className="text-xs sm:text-sm text-gray-600 mt-1 hidden sm:block">
+                    Update product details and information
+                  </p>
                 </div>
                 <button
                   onClick={handleClose}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors border border-gray-300 ml-4"
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors border border-gray-300"
                 >
                   <X className="w-5 h-5 text-gray-700" />
                 </button>
@@ -679,9 +668,54 @@ export default function ProductUpdateForm({
                 </div>
               </div>
             ) : (
-              <div className="flex">
-                {/* Sidebar Navigation */}
-                <div className="w-64 border-r border-gray-300 bg-gray-50">
+              <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+                {/* Mobile Menu Button */}
+                <div className="md:hidden border-b border-gray-300 p-3 bg-gray-50 flex-shrink-0">
+                  <button
+                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                    className="w-full flex items-center justify-between px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm"
+                  >
+                    <div className="flex items-center">
+                      {(() => {
+                        const SectionIcon = sections.find(s => s.id === activeSection)?.icon || Package;
+                        return <SectionIcon className="w-5 h-5 mr-2 text-gray-700" />;
+                      })()}
+                      <span className="font-medium text-gray-900">
+                        {sections.find(s => s.id === activeSection)?.label || "Section"}
+                      </span>
+                    </div>
+                    <Menu className="w-5 h-5 text-gray-600" />
+                  </button>
+
+                  {/* Mobile Navigation Menu */}
+                  {mobileMenuOpen && (
+                    <div className="mt-3 bg-white border border-gray-300 rounded-lg shadow-lg overflow-hidden">
+                      {sections.map((section) => {
+                        const Icon = section.icon;
+                        const isActive = activeSection === section.id;
+                        return (
+                          <button
+                            key={section.id}
+                            onClick={() => {
+                              setActiveSection(section.id);
+                              setMobileMenuOpen(false);
+                            }}
+                            className={`w-full flex items-center px-4 py-3 text-sm transition-colors ${isActive
+                              ? "bg-gray-900 text-white"
+                              : "text-gray-700 hover:bg-gray-100"
+                              }`}
+                          >
+                            <Icon className="w-4 h-4 mr-3" />
+                            {section.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Sidebar Navigation - Desktop */}
+                <div className="hidden md:block w-64 border-r border-gray-300 bg-gray-50 flex-shrink-0 overflow-y-auto">
                   <div className="p-4">
                     <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
                       Sections
@@ -694,8 +728,8 @@ export default function ProductUpdateForm({
                             key={section.id}
                             onClick={() => setActiveSection(section.id)}
                             className={`w-full flex items-center px-3 py-2.5 text-sm rounded-lg transition-colors ${activeSection === section.id
-                                ? "bg-gray-900 text-white"
-                                : "text-gray-700 hover:bg-gray-200"
+                              ? "bg-gray-900 text-white"
+                              : "text-gray-700 hover:bg-gray-200"
                               }`}
                           >
                             <Icon className="w-4 h-4 mr-3" />
@@ -708,10 +742,10 @@ export default function ProductUpdateForm({
                 </div>
 
                 {/* Main Content */}
-                <div className="flex-1 overflow-y-auto max-h-[calc(90vh-80px)]">
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
                   <form
                     onSubmit={(e: React.FormEvent) => e.preventDefault()}
-                    className="p-8"
+                    className="space-y-8"
                   >
                     {/* Basic Information Section */}
                     {activeSection === "basic" && (
@@ -720,7 +754,7 @@ export default function ProductUpdateForm({
                           <h3 className="text-lg font-semibold text-gray-900 mb-6 pb-2 border-b border-gray-300">
                             Product Details
                           </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <div>
                               <label className="block text-sm font-medium text-gray-900 mb-2">
                                 Product Title *
@@ -797,7 +831,29 @@ export default function ProductUpdateForm({
                               handleFormChange();
                             }}
                             placeholder="Enter detailed product description..."
+                            className="border border-gray-400 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-gray-800 focus-within:border-gray-800 transition-all"
                           />
+                          <div className="mt-2 flex flex-col sm:flex-row justify-between text-xs text-gray-600 gap-2">
+                            <div className="flex flex-wrap items-center space-x-4 gap-y-1">
+                              <span className="flex items-center">
+                                <span className="font-semibold mr-1">
+                                  Format:
+                                </span>
+                                <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">
+                                  B
+                                </kbd>
+                                <span className="mx-1">- Bold</span>
+                                <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">
+                                  I
+                                </kbd>
+                                <span className="mx-1">- Italic</span>
+                                <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">
+                                  U
+                                </kbd>
+                                <span className="mx-1">- Underline</span>
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -809,7 +865,7 @@ export default function ProductUpdateForm({
                           <h3 className="text-lg font-semibold text-gray-900 mb-6 pb-2 border-b border-gray-300">
                             Pricing Information
                           </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <div>
                               <label className="block text-sm font-medium text-gray-900 mb-2">
                                 Selling Price *
@@ -898,7 +954,7 @@ export default function ProductUpdateForm({
                           <h3 className="text-lg font-semibold text-gray-900 mb-6 pb-2 border-b border-gray-300">
                             Inventory Management
                           </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <div>
                               <label className="block text-sm font-medium text-gray-900 mb-2">
                                 Stock Quantity *
@@ -919,7 +975,7 @@ export default function ProductUpdateForm({
 
                         {/* Sizes Variants */}
                         <div>
-                          <div className="flex items-center justify-between mb-4">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
                             <h4 className="text-md font-semibold text-gray-900">
                               Size Variants
                             </h4>
@@ -949,7 +1005,7 @@ export default function ProductUpdateForm({
                                   <Trash2 className="w-4 h-4 text-gray-600" />
                                 </button>
                               </div>
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <div>
                                   <label className="block text-sm text-gray-700 mb-1">
                                     Size Title
@@ -1007,7 +1063,7 @@ export default function ProductUpdateForm({
 
                         {/* Color Variants */}
                         <div>
-                          <div className="flex items-center justify-between mb-4">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
                             <h4 className="text-md font-semibold text-gray-900">
                               Color Variants
                             </h4>
@@ -1037,7 +1093,7 @@ export default function ProductUpdateForm({
                                   <Trash2 className="w-4 h-4 text-gray-600" />
                                 </button>
                               </div>
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <div>
                                   <label className="block text-sm text-gray-700 mb-1">
                                     Color Name
@@ -1046,11 +1102,7 @@ export default function ProductUpdateForm({
                                     type="text"
                                     value={color.title}
                                     onChange={(e) =>
-                                      updateColor(
-                                        index,
-                                        "title",
-                                        e.target.value,
-                                      )
+                                      updateColor(index, "title", e.target.value)
                                     }
                                     className="w-full px-3 py-2 border border-gray-400 rounded bg-white"
                                     placeholder="e.g., Red, Blue, Green"
@@ -1109,7 +1161,7 @@ export default function ProductUpdateForm({
 
                           {/* Thumbnail Link Section */}
                           <div className="mb-8">
-                            <div className="flex items-center justify-between mb-4">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
                               <h4 className="text-md font-semibold text-gray-900 flex items-center">
                                 <LinkIcon className="w-4 h-4 mr-2" />
                                 Add Thumbnail from Link
@@ -1130,7 +1182,7 @@ export default function ProductUpdateForm({
 
                             {showThumbnailInput && (
                               <div className="mb-6 p-4 border border-gray-300 rounded-lg bg-gray-50">
-                                <div className="flex items-center justify-between mb-3">
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 gap-2">
                                   <label className="block text-sm font-medium text-gray-900">
                                     Thumbnail URL
                                   </label>
@@ -1139,7 +1191,7 @@ export default function ProductUpdateForm({
                                     Supports: JPG, PNG, GIF, WebP
                                   </div>
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="flex flex-col sm:flex-row gap-2">
                                   <input
                                     type="url"
                                     value={thumbnailLink}
@@ -1152,7 +1204,7 @@ export default function ProductUpdateForm({
                                   <button
                                     type="button"
                                     onClick={addThumbnailFromLink}
-                                    className="px-6 py-3 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors flex items-center"
+                                    className="px-6 py-3 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors flex items-center justify-center"
                                     disabled={!thumbnailLink.trim()}
                                   >
                                     <Plus className="w-4 h-4 mr-2" />
@@ -1161,43 +1213,33 @@ export default function ProductUpdateForm({
                                 </div>
                                 {thumbnailLink && (
                                   <div className="mt-3 p-3 bg-white border border-gray-300 rounded-lg">
-                                    <div className="flex items-center justify-between mb-2">
-                                      <span className="text-sm text-gray-700 truncate mr-2">
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                                      <span className="text-sm text-gray-700 truncate flex-1">
                                         {thumbnailLink}
                                       </span>
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          navigator.clipboard.writeText(
-                                            thumbnailLink,
-                                          )
-                                        }
-                                        className="p-1 hover:bg-gray-200 rounded transition-colors"
-                                        title="Copy URL"
-                                      >
-                                        <Copy className="w-4 h-4 text-gray-600" />
-                                      </button>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                      <a
-                                        href={thumbnailLink}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-xs text-blue-600 hover:text-blue-800 flex items-center"
-                                      >
-                                        <ExternalLink className="w-3 h-3 mr-1" />
-                                        Open in new tab
-                                      </a>
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          window.open(thumbnailLink, "_blank")
-                                        }
-                                        className="text-xs text-gray-600 hover:text-gray-800 flex items-center"
-                                      >
-                                        <ImageIcon className="w-3 h-3 mr-1" />
-                                        Preview
-                                      </button>
+                                      <div className="flex space-x-2">
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            navigator.clipboard.writeText(
+                                              thumbnailLink,
+                                            )
+                                          }
+                                          className="p-1 hover:bg-gray-200 rounded transition-colors"
+                                          title="Copy URL"
+                                        >
+                                          <Copy className="w-4 h-4 text-gray-600" />
+                                        </button>
+                                        <a
+                                          href={thumbnailLink}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="p-1 hover:bg-gray-200 rounded transition-colors text-blue-600"
+                                          title="Open in new tab"
+                                        >
+                                          <ExternalLink className="w-4 h-4" />
+                                        </a>
+                                      </div>
                                     </div>
                                   </div>
                                 )}
@@ -1215,19 +1257,19 @@ export default function ProductUpdateForm({
                                 multiple
                                 onChange={handleImageUpload}
                               />
-                              <div className="px-6 py-8 border-2 border-dashed border-gray-400 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors flex flex-col items-center justify-center">
-                                <Upload className="w-12 h-12 text-gray-500 mb-4" />
-                                <span className="text-lg font-medium text-gray-900">
+                              <div className="px-4 sm:px-6 py-6 sm:py-8 border-2 border-dashed border-gray-400 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors flex flex-col items-center justify-center">
+                                <Upload className="w-10 h-10 sm:w-12 sm:h-12 text-gray-500 mb-4" />
+                                <span className="text-base sm:text-lg font-medium text-gray-900 text-center">
                                   Click to upload images
                                 </span>
-                                <p className="text-sm text-gray-600 mt-2">
+                                <p className="text-xs sm:text-sm text-gray-600 mt-2 text-center">
                                   Drag and drop images here or click to browse
                                 </p>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  Recommended: JPG, PNG, GIF, WebP. Max file
-                                  size: 10MB
+                                <p className="text-xs text-gray-500 mt-1 text-center">
+                                  Recommended: JPG, PNG, GIF, WebP. Max file size:
+                                  10MB
                                 </p>
-                                <div className="mt-4 flex items-center gap-4 text-xs text-gray-600">
+                                <div className="mt-4 flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-xs text-gray-600">
                                   <span className="px-2 py-1 bg-gray-100 rounded">
                                     JPG
                                   </span>
@@ -1248,16 +1290,16 @@ export default function ProductUpdateForm({
                           {/* Uploaded Images Display */}
                           {images.length > 0 && (
                             <div>
-                              <div className="flex items-center justify-between mb-4">
+                              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
                                 <h4 className="text-md font-semibold text-gray-900">
                                   Product Images ({images.length})
                                 </h4>
-                                <div className="text-sm text-gray-600">
+                                <div className="text-xs sm:text-sm text-gray-600">
                                   <span className="inline-flex items-center mr-4">
                                     <div className="w-3 h-3 bg-green-500 rounded-full mr-1"></div>
                                     Primary
                                   </span>
-                                  <span className="text-gray-500">
+                                  <span className="text-gray-500 hidden sm:inline">
                                     Click star to set as primary
                                   </span>
                                 </div>
@@ -1277,7 +1319,7 @@ export default function ProductUpdateForm({
                                           ?.preview
                                       }
                                       alt="Primary"
-                                      className="w-full h-64 object-cover"
+                                      className="w-full h-48 sm:h-64 object-cover"
                                     />
                                     <div className="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded flex items-center">
                                       <Star className="w-3 h-3 mr-1" />
@@ -1285,12 +1327,12 @@ export default function ProductUpdateForm({
                                     </div>
                                   </div>
                                 ) : (
-                                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                                    <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                                    <p className="text-gray-600">
+                                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 sm:p-8 text-center">
+                                    <ImageIcon className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-3" />
+                                    <p className="text-gray-600 text-sm sm:text-base">
                                       No primary image selected
                                     </p>
-                                    <p className="text-sm text-gray-500 mt-1">
+                                    <p className="text-xs text-gray-500 mt-1">
                                       Select an image and click the star icon
                                     </p>
                                   </div>
@@ -1298,19 +1340,19 @@ export default function ProductUpdateForm({
                               </div>
 
                               {/* All Images Grid */}
-                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                                 {images.map((image, index) => (
                                   <div
                                     key={index}
                                     className={`relative border rounded-lg overflow-hidden group ${image.is_primary
-                                        ? "border-green-500 border-2"
-                                        : "border-gray-300"
+                                      ? "border-green-500 border-2"
+                                      : "border-gray-300"
                                       }`}
                                   >
                                     <img
                                       src={image.preview}
                                       alt={`Product ${index + 1}`}
-                                      className="w-full h-48 object-cover"
+                                      className="w-full h-32 sm:h-48 object-cover"
                                     />
                                     <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
                                       <div className="flex space-x-2">
@@ -1318,8 +1360,8 @@ export default function ProductUpdateForm({
                                           type="button"
                                           onClick={() => setPrimaryImage(index)}
                                           className={`p-2 rounded-full transition-colors ${image.is_primary
-                                              ? "bg-yellow-500 text-white"
-                                              : "bg-white hover:bg-gray-200 text-gray-900"
+                                            ? "bg-yellow-500 text-white"
+                                            : "bg-white hover:bg-gray-200 text-gray-900"
                                             }`}
                                           title={
                                             image.is_primary
@@ -1344,8 +1386,8 @@ export default function ProductUpdateForm({
                                       </div>
                                     </div>
                                     {image.is_primary && (
-                                      <div className="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded flex items-center">
-                                        <Star className="w-3 h-3 mr-1" />
+                                      <div className="absolute top-1 left-1 sm:top-2 sm:left-2 bg-green-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded flex items-center">
+                                        <Star className="w-2 h-2 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
                                         Primary
                                       </div>
                                     )}
@@ -1365,12 +1407,12 @@ export default function ProductUpdateForm({
                           <h3 className="text-lg font-semibold text-gray-900 mb-6 pb-2 border-b border-gray-300">
                             Shipping Information
                           </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <div>
                               <label className="block text-sm font-medium text-gray-900 mb-2">
                                 Weight
                               </label>
-                              <div className="flex gap-2">
+                              <div className="flex flex-col sm:flex-row gap-2">
                                 <input
                                   type="number"
                                   name="weight"
@@ -1401,7 +1443,7 @@ export default function ProductUpdateForm({
                             <h4 className="text-md font-semibold text-gray-900 mb-4">
                               Dimensions
                             </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                               <div>
                                 <label className="block text-sm text-gray-700 mb-1">
                                   Length
@@ -1508,13 +1550,11 @@ export default function ProductUpdateForm({
                               <label className="block text-sm font-medium text-gray-900 mb-2">
                                 Keywords
                               </label>
-                              <div className="flex gap-2 mb-3">
+                              <div className="flex flex-col sm:flex-row gap-2 mb-3">
                                 <input
                                   type="text"
                                   value={newKeyword}
-                                  onChange={(e) =>
-                                    setNewKeyword(e.target.value)
-                                  }
+                                  onChange={(e) => setNewKeyword(e.target.value)}
                                   onKeyPress={(e) =>
                                     e.key === "Enter" &&
                                     (e.preventDefault(), addKeyword())
@@ -1555,7 +1595,7 @@ export default function ProductUpdateForm({
                       </div>
                     )}
 
-                    {/* Categories & Tags Section - UPDATED with category system from create form */}
+                    {/* Categories & Tags Section */}
                     {activeSection === "categories" && (
                       <div className="space-y-8">
                         <div>
@@ -1564,7 +1604,7 @@ export default function ProductUpdateForm({
                           </h3>
 
                           <div className="mb-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                               <div>
                                 <label className="block text-sm font-medium text-gray-900 mb-2">
                                   Main Category *
@@ -1574,7 +1614,7 @@ export default function ProductUpdateForm({
                                   onChange={(e) => {
                                     setCategoriesData({
                                       main_category: e.target.value,
-                                      sub_category: "", // Reset sub category when main changes
+                                      sub_category: "",
                                     });
                                     handleFormChange();
                                   }}
@@ -1583,7 +1623,6 @@ export default function ProductUpdateForm({
                                 >
                                   <option value="">Select main category</option>
                                   {categories.map((cat: any) => {
-                                    // Handle different possible structures of category
                                     const categoryValue = cat.main_label || cat.title || cat.name || cat._id;
                                     const categoryLabel = cat.main_label || cat.title || cat.name || "Unnamed Category";
 
@@ -1616,25 +1655,13 @@ export default function ProductUpdateForm({
                                   <option value="">Select sub category</option>
                                   {categoriesData.main_category &&
                                     (() => {
-                                      // Find the selected main category
                                       const selectedMainCat = categories.find((cat: any) =>
                                         (cat.main_label || cat.title || cat.name) === categoriesData.main_category
                                       );
 
-                                      // Get sub categories array - handle different possible structures
-                                      let subCategories = [];
+                                      let subCategories = selectedMainCat?.sub_label || [];
 
-                                      if (selectedMainCat?.sub_label && Array.isArray(selectedMainCat.sub_label)) {
-                                        subCategories = selectedMainCat.sub_label;
-                                      } else if (selectedMainCat?.sub_categories && Array.isArray(selectedMainCat.sub_categories)) {
-                                        subCategories = selectedMainCat.sub_categories;
-                                      } else if (selectedMainCat?.children && Array.isArray(selectedMainCat.children)) {
-                                        subCategories = selectedMainCat.children;
-                                      }
-
-                                      // Map through sub categories
                                       return subCategories.map((subItem: any, index: number) => {
-                                        // Handle different possible structures of sub category
                                         let subValue = "";
                                         let subLabel = "";
 
@@ -1642,7 +1669,6 @@ export default function ProductUpdateForm({
                                           subValue = subItem;
                                           subLabel = subItem;
                                         } else if (subItem && typeof subItem === 'object') {
-                                          // If it's an object, try to get the title or name
                                           subValue = subItem.title || subItem.name || subItem._id || `sub-${index}`;
                                           subLabel = subItem.title || subItem.name || "Unnamed Subcategory";
                                         } else {
@@ -1672,43 +1698,36 @@ export default function ProductUpdateForm({
                     )}
 
                     {/* Navigation Buttons */}
-                    <div className="mt-8 pt-6 border-t border-gray-300 flex justify-between">
-                      <div className="flex gap-3">
-                        {sections.findIndex((s) => s.id === activeSection) >
-                          0 && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const currentIndex = sections.findIndex(
-                                  (s) => s.id === activeSection,
-                                );
-                                setActiveSection(sections[currentIndex - 1].id);
-                              }}
-                              className="px-6 py-2.5 border border-gray-400 rounded-lg text-sm font-medium text-gray-900 hover:bg-gray-100 transition-colors flex items-center"
-                            >
-                              <ChevronUp className="w-4 h-4 mr-2" />
-                              Previous
-                            </button>
-                          )}
+                    <div className="mt-8 pt-6 border-t border-gray-300 flex flex-col sm:flex-row justify-between gap-4">
+                      <div className="order-2 sm:order-1 flex gap-3">
+                        {sections.findIndex((s) => s.id === activeSection) > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const currentIndex = sections.findIndex(
+                                (s) => s.id === activeSection,
+                              );
+                              setActiveSection(sections[currentIndex - 1].id);
+                            }}
+                            className="w-full sm:w-auto px-6 py-2.5 border border-gray-400 rounded-lg text-sm font-medium text-gray-900 hover:bg-gray-100 transition-colors flex items-center justify-center"
+                          >
+                            <ChevronUp className="w-4 h-4 mr-2" />
+                            Previous
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={handleReset}
-                          className="px-6 py-2.5 border border-gray-400 rounded-lg text-sm font-medium text-gray-900 hover:bg-gray-100 transition-colors"
+                          className="w-full sm:w-auto px-6 py-2.5 border border-gray-400 rounded-lg text-sm font-medium text-gray-900 hover:bg-gray-100 transition-colors"
                         >
                           Reset Form
                         </button>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-col sm:flex-row items-center gap-3 order-1 sm:order-2">
                         <button
                           type="button"
-                          onClick={() => {
-                            if (hasUnsavedChanges) {
-                              setShowConfirmClose(true);
-                            } else {
-                              onClose();
-                            }
-                          }}
-                          className="px-6 py-2.5 border border-gray-400 rounded-lg text-sm font-medium text-gray-900 hover:bg-gray-100 transition-colors"
+                          onClick={handleClose}
+                          className="w-full sm:w-auto px-6 py-2.5 border border-gray-400 rounded-lg text-sm font-medium text-gray-900 hover:bg-gray-100 transition-colors"
                         >
                           Cancel
                         </button>
@@ -1722,7 +1741,7 @@ export default function ProductUpdateForm({
                               );
                               setActiveSection(sections[currentIndex + 1].id);
                             }}
-                            className="px-6 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors flex items-center"
+                            className="w-full sm:w-auto px-6 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors flex items-center justify-center"
                           >
                             Next
                             <ChevronDown className="w-4 h-4 ml-2" />
@@ -1732,7 +1751,7 @@ export default function ProductUpdateForm({
                             type="submit"
                             onClick={handleSubmit}
                             disabled={loading}
-                            className="px-6 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center min-w-[140px] justify-center"
+                            className="w-full sm:w-auto px-6 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[140px]"
                           >
                             {loading ? (
                               <>
