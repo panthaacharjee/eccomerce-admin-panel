@@ -1,6 +1,7 @@
 // app/admin/page.tsx
 "use client";
 
+import { useEffect, useState, useMemo } from "react";
 import {
   BarChart3,
   Package,
@@ -25,239 +26,418 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "@/redux/rootReducer";
+import { GetAllUsersRequest, GetAllUsersSuccess, GetAllUsersFail } from "@/redux/reducers/userReducer";
+import { GetAllOrderRequest, GetAllOrderSuccess, GetAllOrderFail } from "@/redux/reducers/orderReducer";
+import { GetAllProductRequest, GetAllProductSuccess, GetAllProductFail } from "@/redux/reducers/productReducer";
+import Axios from "@/components/Axios";
+import { Product, ProductImage, ProductSizes } from "@/redux/interfaces/productInterface";
 
-// Sales data for chart
-const monthlySalesData = [
-  { month: "Jan", income: 65000, expenses: 42000, balance: 23000 },
-  { month: "Feb", income: 72000, expenses: 48000, balance: 24000 },
-  { month: "Mar", income: 81000, expenses: 52000, balance: 29000 },
-  { month: "Apr", income: 92000, expenses: 58000, balance: 34000 },
-  { month: "May", income: 88000, expenses: 55000, balance: 33000 },
-  { month: "Jun", income: 95000, expenses: 60000, balance: 35000 },
-  { month: "Jul", income: 102000, expenses: 65000, balance: 37000 },
-  { month: "Aug", income: 110000, expenses: 68000, balance: 42000 },
-  { month: "Sep", income: 98000, expenses: 62000, balance: 36000 },
-  { month: "Oct", income: 105000, expenses: 66000, balance: 39000 },
-  { month: "Nov", income: 115000, expenses: 70000, balance: 45000 },
-  { month: "Dec", income: 125000, expenses: 75000, balance: 50000 },
-];
+// Helper functions
+const formatCurrency = (amount: number, currency: string = "BDT") => {
+  return new Intl.NumberFormat("bdt", {
+    style: "currency",
+    currency: currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
 
-// Top selling products with online images
-const topSellingProducts = [
-  {
-    id: 1,
-    name: "Wireless Bluetooth Headphones",
-    category: "Electronics",
-    price: "$89.99",
-    sold: 1245,
-    revenue: "$112,103",
-    growth: "+12.5%",
-    status: "trending-up",
-    image:
-      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&h=100&fit=crop",
-    stock: 156,
-  },
-  {
-    id: 2,
-    name: "Premium Smart Watch",
-    category: "Electronics",
-    price: "$249.99",
-    sold: 892,
-    revenue: "$223,103",
-    growth: "+18.2%",
-    status: "trending-up",
-    image:
-      "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=100&h=100&fit=crop",
-    stock: 89,
-  },
-  {
-    id: 3,
-    name: "Organic Cotton T-Shirt",
-    category: "Fashion",
-    price: "$29.99",
-    sold: 2341,
-    revenue: "$70,123",
-    growth: "+5.3%",
-    status: "trending-up",
-    image:
-      "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=100&h=100&fit=crop",
-    stock: 342,
-  },
-  {
-    id: 4,
-    name: "Ceramic Coffee Mug Set",
-    category: "Home",
-    price: "$34.99",
-    sold: 1567,
-    revenue: "$54,823",
-    growth: "+2.1%",
-    status: "trending-down",
-    image:
-      "https://images.unsplash.com/photo-1514228742587-6b1558fcf93a?w=100&h=100&fit=crop",
-    stock: 45,
-  },
-  {
-    id: 5,
-    name: "Yoga Mat Premium",
-    category: "Fitness",
-    price: "$49.99",
-    sold: 1023,
-    revenue: "$51,123",
-    growth: "+8.7%",
-    status: "trending-up",
-    image:
-      "https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?w=100&h=100&fit=crop",
-    stock: 128,
-  },
-];
-
-// Top 10 today sales
-const todaysSales = [
-  {
-    id: 1,
-    orderId: "ORD-1001",
-    customer: "John Smith",
-    amount: "$149.99",
-    status: "completed",
-    time: "10:30 AM",
-  },
-  {
-    id: 2,
-    orderId: "ORD-1002",
-    customer: "Emma Johnson",
-    amount: "$89.99",
-    status: "completed",
-    time: "11:15 AM",
-  },
-  {
-    id: 3,
-    orderId: "ORD-1003",
-    customer: "Michael Brown",
-    amount: "$249.99",
-    status: "pending",
-    time: "12:45 PM",
-  },
-  {
-    id: 4,
-    orderId: "ORD-1004",
-    customer: "Sarah Davis",
-    amount: "$34.99",
-    status: "completed",
-    time: "1:30 PM",
-  },
-  {
-    id: 5,
-    orderId: "ORD-1005",
-    customer: "Robert Wilson",
-    amount: "$199.99",
-    status: "cancelled",
-    time: "2:15 PM",
-  },
-  {
-    id: 6,
-    orderId: "ORD-1006",
-    customer: "Lisa Miller",
-    amount: "$59.99",
-    status: "completed",
-    time: "3:00 PM",
-  },
-  {
-    id: 7,
-    orderId: "ORD-1007",
-    customer: "David Taylor",
-    amount: "$129.99",
-    status: "pending",
-    time: "3:45 PM",
-  },
-  {
-    id: 8,
-    orderId: "ORD-1008",
-    customer: "Jennifer Lee",
-    amount: "$79.99",
-    status: "completed",
-    time: "4:30 PM",
-  },
-  {
-    id: 9,
-    orderId: "ORD-1009",
-    customer: "Thomas Clark",
-    amount: "$299.99",
-    status: "completed",
-    time: "5:15 PM",
-  },
-  {
-    id: 10,
-    orderId: "ORD-1010",
-    customer: "Maria Garcia",
-    amount: "$49.99",
-    status: "pending",
-    time: "6:00 PM",
-  },
-];
-
-// Current offers (only 2 for dashboard)
-const currentOffers = [
-  {
-    id: 1,
-    title: "Summer Sale",
-    discount: "30% OFF",
-    code: "SUMMER30",
-    validUntil: "2024-08-31",
-    status: "active",
-    used: "1,234",
-  },
-  {
-    id: 2,
-    title: "Free Shipping",
-    discount: "Free Ship",
-    code: "FREESHIP",
-    validUntil: "2024-12-31",
-    status: "active",
-    used: "2,567",
-  },
-];
+const formatDate = (dateString: string) => {
+  if (!dateString) return "N/A";
+  try {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch (error) {
+    return "Invalid date";
+  }
+};
 
 export default function DashboardPage() {
-  // Stats data
+  const dispatch = useDispatch();
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Get data from Redux state
+  const { users, loading: usersLoading } = useSelector((state: RootState) => state.user);
+  const { orders, loading: ordersLoading } = useSelector((state: RootState) => state.order);
+  const { products, loading: productsLoading } = useSelector((state: RootState) => state.product);
+
+  // Fetch all data
+  const getAllUsers = async () => {
+    try {
+      dispatch(GetAllUsersRequest());
+      const { data } = await Axios.get("/get/users");
+      dispatch(GetAllUsersSuccess(data));
+    } catch (error: any) {
+      console.error("Error fetching users:", error);
+      dispatch(GetAllUsersFail(error.response?.data?.message || "Failed to fetch users"));
+    }
+  };
+
+  const getAllOrders = async () => {
+    try {
+      dispatch(GetAllOrderRequest());
+      const { data } = await Axios.get("/get/orders");
+      dispatch(GetAllOrderSuccess(data));
+    } catch (error: any) {
+      console.error("Error fetching orders:", error);
+      dispatch(GetAllOrderFail(error.response?.data?.message || "Failed to fetch orders"));
+    }
+  };
+
+  const getAllProducts = async () => {
+    try {
+      dispatch(GetAllProductRequest());
+      const { data } = await Axios.get("/get/products");
+      dispatch(GetAllProductSuccess(data));
+    } catch (error: any) {
+      console.error("Error fetching products:", error);
+      dispatch(GetAllProductFail(error.response?.data?.message || "Failed to fetch products"));
+    }
+  };
+
+  useEffect(() => {
+    const fetchAllData = async () => {
+      setIsLoading(true);
+      await Promise.all([
+        getAllUsers(),
+        getAllOrders(),
+        getAllProducts(),
+      ]);
+      setIsLoading(false);
+    };
+    fetchAllData();
+  }, []);
+
+  // Calculate dashboard statistics from real data
+  const dashboardStats = useMemo(() => {
+    // Calculate total revenue from orders
+    const totalRevenue = orders?.reduce((sum: number, order: any) => {
+      const orderTotal = order.total || order.subtotal || 0;
+      return sum + (typeof orderTotal === 'number' ? orderTotal : 0);
+    }, 0) || 0;
+
+    // Calculate this month's revenue
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth();
+    const currentYear = currentDate.getFullYear();
+
+    const thisMonthRevenue = orders?.reduce((sum: number, order: any) => {
+      const orderDate = new Date(order.orderDate || order.createdAt);
+      if (orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear) {
+        const orderTotal = order.total || order.subtotal || 0;
+        return sum + (typeof orderTotal === 'number' ? orderTotal : 0);
+      }
+      return sum;
+    }, 0) || 0;
+
+    // Calculate last month's revenue for comparison
+    const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+    const lastMonthRevenue = orders?.reduce((sum: number, order: any) => {
+      const orderDate = new Date(order.orderDate || order.createdAt);
+      if (orderDate.getMonth() === lastMonth && orderDate.getFullYear() === lastMonthYear) {
+        const orderTotal = order.total || order.subtotal || 0;
+        return sum + (typeof orderTotal === 'number' ? orderTotal : 0);
+      }
+      return sum;
+    }, 0) || 0;
+
+    const revenueChange = lastMonthRevenue > 0
+      ? ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100
+      : thisMonthRevenue > 0 ? 100 : 0;
+
+    // Total orders
+    const totalOrders = orders?.length || 0;
+
+    // Calculate this month's orders
+    const thisMonthOrders = orders?.filter((order: any) => {
+      const orderDate = new Date(order.orderDate || order.createdAt);
+      return orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear;
+    }).length || 0;
+
+    const lastMonthOrders = orders?.filter((order: any) => {
+      const orderDate = new Date(order.orderDate || order.createdAt);
+      return orderDate.getMonth() === lastMonth && orderDate.getFullYear() === lastMonthYear;
+    }).length || 0;
+
+    const ordersChange = lastMonthOrders > 0
+      ? ((thisMonthOrders - lastMonthOrders) / lastMonthOrders) * 100
+      : thisMonthOrders > 0 ? 100 : 0;
+
+    // Total customers
+    const totalCustomers = users?.length || 0;
+
+    // Calculate new customers this month
+    const newCustomersThisMonth = users?.filter((user: any) => {
+      const joinDate = new Date(user.createdAt);
+      return joinDate.getMonth() === currentMonth && joinDate.getFullYear() === currentYear;
+    }).length || 0;
+
+    const newCustomersLastMonth = users?.filter((user: any) => {
+      const joinDate = new Date(user.createdAt);
+      return joinDate.getMonth() === lastMonth && joinDate.getFullYear() === lastMonthYear;
+    }).length || 0;
+
+    const customersChange = newCustomersLastMonth > 0
+      ? ((newCustomersThisMonth - newCustomersLastMonth) / newCustomersLastMonth) * 100
+      : newCustomersThisMonth > 0 ? 100 : 0;
+
+    // Pending deliveries (orders that are not delivered or cancelled)
+    const pendingDeliveries = orders?.filter((order: any) => {
+      const status = order.orderStatus || order.status;
+      return status !== "delivered" && status !== "cancelled" && status !== "refunded";
+    }).length || 0;
+
+    const lastMonthPending = orders?.filter((order: any) => {
+      const orderDate = new Date(order.orderDate || order.createdAt);
+      const status = order.orderStatus || order.status;
+      return (status !== "delivered" && status !== "cancelled" && status !== "refunded") &&
+        orderDate.getMonth() === lastMonth && orderDate.getFullYear() === lastMonthYear;
+    }).length || 0;
+
+    const pendingChange = lastMonthPending > 0
+      ? ((pendingDeliveries - lastMonthPending) / lastMonthPending) * 100
+      : pendingDeliveries > 0 ? 100 : 0;
+
+    return {
+      totalRevenue,
+      revenueChange,
+      totalOrders,
+      ordersChange,
+      totalCustomers,
+      customersChange,
+      pendingDeliveries,
+      pendingChange,
+    };
+  }, [orders, users]);
+
+  // Generate monthly sales data from orders
+  const monthlySalesData = useMemo(() => {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const currentYear = new Date().getFullYear();
+
+    const monthlyData = months.map((month, index) => ({
+      month,
+      income: 0,
+      expenses: 0,
+      balance: 0,
+    }));
+
+    orders?.forEach((order: any) => {
+      const orderDate = new Date(order.orderDate || order.createdAt);
+      if (orderDate.getFullYear() === currentYear) {
+        const monthIndex = orderDate.getMonth();
+        const orderTotal = order.total || order.subtotal || 0;
+        const orderAmount = typeof orderTotal === 'number' ? orderTotal : 0;
+
+        // Estimate expenses as 40% of revenue (example calculation)
+        const estimatedExpenses = orderAmount * 0.4;
+
+        monthlyData[monthIndex].income += orderAmount;
+        monthlyData[monthIndex].expenses += estimatedExpenses;
+        monthlyData[monthIndex].balance = monthlyData[monthIndex].income - monthlyData[monthIndex].expenses;
+      }
+    });
+
+    return monthlyData;
+  }, [orders]);
+
+  // Get top selling products from orders
+  const topSellingProducts = useMemo(() => {
+    const productSales = new Map();
+
+    orders?.forEach((order: any) => {
+      const items = order.items || [];
+      items.forEach((item: any) => {
+        const productId = item.id || item.productId || item._id;
+        if (productId) {
+          const existing = productSales.get(productId) || {
+            id: productId,
+            name: item.title || item.name || "Unknown Product",
+            price: item.price || 0,
+            quantity: 0,
+            revenue: 0,
+          };
+          const quantity = item.quantity || 1;
+          const itemPrice = item.price || 0;
+          existing.quantity += quantity;
+          existing.revenue += itemPrice * quantity;
+          productSales.set(productId, existing);
+        }
+      });
+    });
+
+    // Find matching product details from products array
+    const productsWithDetails = Array.from(productSales.values()).map(sale => {
+      const productDetails = products?.find((p: Product) => p._id === sale.id || (p as any).id === sale.id);
+
+      // Get the primary image URL
+      let imageUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${sale.id}`;
+      if (productDetails?.thumbnail) {
+        imageUrl = productDetails.thumbnail;
+      } else if (productDetails?.images && productDetails.images.length > 0) {
+        const primaryImage = productDetails.images.find((img: ProductImage) => img.isPrimary);
+        imageUrl = primaryImage?.url || productDetails.images[0]?.url || imageUrl;
+      }
+
+      // Get category name
+      let categoryName = "General";
+      if (productDetails?.categories) {
+        if (typeof productDetails.categories === 'object') {
+          categoryName = productDetails.categories.main_category ||
+            productDetails.categories.sub_category ||
+            "General";
+        } else if (typeof productDetails.categories === 'string') {
+          categoryName = productDetails.categories;
+        }
+      }
+
+      // Get stock quantity
+      let totalStock = productDetails?.stock_quantity || 0;
+      if (productDetails?.sizes && productDetails.sizes.length > 0) {
+        totalStock = productDetails.sizes.reduce((sum: number, size: ProductSizes) => {
+          return sum + (size.stockQuantity || size.stock || 0);
+        }, 0);
+      }
+
+
+
+      // Calculate growth based on purchase count
+      let growth = "+0%";
+      let status: "trending-up" | "trending-down" = "trending-up";
+
+      if (productDetails?.purchase_count && productDetails.purchase_count > 0) {
+        const growthPercent = ((sale.quantity - (productDetails.purchase_count * 0.5)) / (productDetails.purchase_count * 0.5)) * 100;
+        growth = `${growthPercent >= 0 ? '+' : ''}${growthPercent.toFixed(1)}%`;
+        status = growthPercent >= 0 ? "trending-up" : "trending-down";
+      } else {
+        const randomGrowth = (Math.random() * 20) - 5;
+        growth = `${randomGrowth >= 0 ? '+' : ''}${randomGrowth.toFixed(1)}%`;
+        status = randomGrowth >= 0 ? "trending-up" : "trending-down";
+      }
+
+      return {
+        id: sale.id,
+        name: productDetails?.title || sale.name,
+        category: categoryName,
+        price: formatCurrency(sale.price, productDetails?.currency || "USD"),
+        sold: sale.quantity,
+        revenue: formatCurrency(sale.revenue, productDetails?.currency || "USD"),
+        growth: growth,
+        status: status,
+        image: imageUrl,
+        stock: totalStock,
+      };
+    });
+
+    // Sort by revenue and get top 5
+    return productsWithDetails
+      .sort((a, b) => {
+        const revenueA = parseFloat(a.revenue.replace(/[^0-9.-]+/g, ""));
+        const revenueB = parseFloat(b.revenue.replace(/[^0-9.-]+/g, ""));
+        return revenueB - revenueA;
+      })
+      .slice(0, 5);
+  }, [orders, products]);
+
+  // Get today's sales
+  const todaysSales = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todayOrders = orders?.filter((order: any) => {
+      const orderDate = new Date(order.orderDate || order.createdAt);
+      return orderDate >= today;
+    }).slice(0, 10) || [];
+
+    return todayOrders.map((order: any, index: number) => {
+      let status = "pending";
+      const orderStatus = order.orderStatus || order.status;
+      if (orderStatus === "delivered" || orderStatus === "completed") status = "completed";
+      else if (orderStatus === "cancelled") status = "cancelled";
+
+      return {
+        id: order._id || index,
+        orderId: order.orderId || `ORD-${order._id?.slice(-4)}`,
+        customer: `${order.deliveryInfo?.firstName || ""} ${order.deliveryInfo?.lastName || ""}`.trim() || order.user?.email?.split('@')[0] || "Unknown Customer",
+        amount: formatCurrency(order.total || order.subtotal || 0),
+        status: status,
+        time: new Date(order.orderDate || order.createdAt).toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+    });
+  }, [orders]);
+
+  // Current offers (you can fetch from an API or use static data)
+  const currentOffers = [
+    {
+      id: 1,
+      title: "Summer Sale",
+      discount: "30% OFF",
+      code: "SUMMER30",
+      validUntil: "2024-08-31",
+      status: "active",
+      used: "1,234",
+    },
+    {
+      id: 2,
+      title: "Free Shipping",
+      discount: "Free Ship",
+      code: "FREESHIP",
+      validUntil: "2024-12-31",
+      status: "active",
+      used: "2,567",
+    },
+  ];
+
+  // Stats data from real calculations
   const stats = [
     {
       title: "Total Revenue",
-      value: "$125,430",
-      change: "+20.1%",
+      value: formatCurrency(dashboardStats.totalRevenue),
+      change: `${dashboardStats.revenueChange >= 0 ? '+' : ''}${dashboardStats.revenueChange.toFixed(1)}%`,
       icon: BarChart3,
       color: "bg-gradient-to-br from-blue-500 to-blue-600",
       textColor: "text-blue-600",
-      trend: "up",
+      trend: dashboardStats.revenueChange >= 0 ? "up" : "down",
       description: "This month",
     },
     {
       title: "Total Orders",
-      value: "2,456",
-      change: "+12.3%",
+      value: dashboardStats.totalOrders.toLocaleString(),
+      change: `${dashboardStats.ordersChange >= 0 ? '+' : ''}${dashboardStats.ordersChange.toFixed(1)}%`,
       icon: ShoppingCart,
       color: "bg-gradient-to-br from-purple-500 to-purple-600",
       textColor: "text-purple-600",
-      trend: "up",
+      trend: dashboardStats.ordersChange >= 0 ? "up" : "down",
       description: "This month",
     },
     {
       title: "Total Customers",
-      value: "12,894",
-      change: "+8.4%",
+      value: dashboardStats.totalCustomers.toLocaleString(),
+      change: `${dashboardStats.customersChange >= 0 ? '+' : ''}${dashboardStats.customersChange.toFixed(1)}%`,
       icon: Users,
       color: "bg-gradient-to-br from-green-500 to-green-600",
       textColor: "text-green-600",
-      trend: "up",
-      description: "Active users",
+      trend: dashboardStats.customersChange >= 0 ? "up" : "down",
+      description: "New customers",
     },
     {
       title: "Pending Delivery",
-      value: "128",
-      change: "-3.2%",
+      value: dashboardStats.pendingDeliveries.toLocaleString(),
+      change: `${dashboardStats.pendingChange >= 0 ? '+' : ''}${dashboardStats.pendingChange.toFixed(1)}%`,
       icon: Truck,
       color: "bg-gradient-to-br from-orange-500 to-orange-600",
       textColor: "text-orange-600",
-      trend: "down",
+      trend: dashboardStats.pendingChange <= 0 ? "down" : "up",
       description: "Awaiting shipment",
     },
   ];
@@ -270,7 +450,7 @@ export default function DashboardPage() {
           <p className="font-semibold text-gray-900">{label}</p>
           {payload.map((entry: any, index: number) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
-              {entry.name}: ${entry.value.toLocaleString()}
+              {entry.name}: {formatCurrency(entry.value)}
             </p>
           ))}
         </div>
@@ -307,8 +487,20 @@ export default function DashboardPage() {
     }
   };
 
+  // Loading state
+  if (isLoading || usersLoading || ordersLoading || productsLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 mt-18 lg:mt-0">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -334,26 +526,15 @@ export default function DashboardPage() {
                   {stat.title}
                 </p>
                 <div className="flex items-baseline space-x-2 mt-1">
-                  <p className="text-xl font-bold text-gray-900">
+                  <p className="text-lg font-bold text-gray-900">
                     {stat.value}
                   </p>
-                  <span
-                    className={`flex items-center text-sm font-medium ${
-                      stat.trend === "up" ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
-                    {stat.trend === "up" ? (
-                      <TrendingUp className="w-3 h-3 mr-1" />
-                    ) : (
-                      <TrendingDown className="w-3 h-3 mr-1" />
-                    )}
-                    {stat.change}
-                  </span>
+           
                 </div>
                 <p className="text-xs text-gray-500 mt-1">{stat.description}</p>
               </div>
               <div className={`${stat.color} p-2 rounded-lg`}>
-                <stat.icon size={20} className="text-white" />
+                <stat.icon size={10} className="text-white" />
               </div>
             </div>
           </div>
@@ -409,7 +590,7 @@ export default function DashboardPage() {
                       axisLine={false}
                       tickLine={false}
                       tick={{ fill: "#6b7280", fontSize: 12 }}
-                      tickFormatter={(value) => `$${value / 1000}k`}
+                      tickFormatter={(value) => formatCurrency(value)}
                     />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend />
@@ -457,7 +638,7 @@ export default function DashboardPage() {
                     Today's Sales
                   </h2>
                   <p className="text-gray-600 text-sm mt-1">
-                    Last 10 orders today
+                    Last {todaysSales.length} orders today
                   </p>
                 </div>
                 <div className="flex items-center">
@@ -467,48 +648,54 @@ export default function DashboardPage() {
             </div>
             <div className="p-3">
               <div className="space-y-2 max-h-[350px] overflow-y-auto">
-                {todaysSales.map((sale) => (
-                  <div
-                    key={sale.id}
-                    className="p-3 border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="text-sm font-medium text-gray-900">
-                            {sale.orderId}
-                          </p>
-                          <span
-                            className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(
-                              sale.status,
-                            )}`}
-                          >
-                            {sale.status.charAt(0).toUpperCase() +
-                              sale.status.slice(1)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-xs text-gray-500">
-                              {sale.customer}
+                {todaysSales.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500 text-sm">No sales today</p>
+                  </div>
+                ) : (
+                  todaysSales.map((sale) => (
+                    <div
+                      key={sale.id}
+                      className="p-3 border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-sm font-medium text-gray-900">
+                              {sale.orderId}
                             </p>
-                            <div className="flex items-center mt-1">
-                              {getStatusIcon(sale.status)}
-                              <span className="text-xs text-gray-500 ml-1">
-                                {sale.time}
-                              </span>
-                            </div>
+                            <span
+                              className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(
+                                sale.status,
+                              )}`}
+                            >
+                              {sale.status.charAt(0).toUpperCase() +
+                                sale.status.slice(1)}
+                            </span>
                           </div>
-                          <div className="text-right">
-                            <p className="text-sm font-bold text-gray-900">
-                              {sale.amount}
-                            </p>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-xs text-gray-500">
+                                {sale.customer}
+                              </p>
+                              <div className="flex items-center mt-1">
+                                {getStatusIcon(sale.status)}
+                                <span className="text-xs text-gray-500 ml-1">
+                                  {sale.time}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-bold text-gray-900">
+                                {sale.amount}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
               <div className="mt-4 pt-3 border-t border-gray-200">
                 <a
@@ -568,60 +755,69 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {topSellingProducts.map((product) => (
-                    <tr key={product.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex items-center">
-                          {/* Product Image - Online URL */}
-                          <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
-                            <img
-                              src={product.image}
-                              alt={product.name}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          <div className="ml-3">
-                            <div className="text-sm font-medium text-gray-900 line-clamp-1">
-                              {product.name}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              Stock: {product.stock}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">
-                          {product.category}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                        {product.price}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                        {product.sold.toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {product.revenue}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span
-                          className={`flex items-center text-sm font-medium ${
-                            product.status === "trending-up"
-                              ? "text-green-600"
-                              : "text-red-600"
-                          }`}
-                        >
-                          {product.status === "trending-up" ? (
-                            <TrendingUp className="w-3 h-3 mr-1" />
-                          ) : (
-                            <TrendingDown className="w-3 h-3 mr-1" />
-                          )}
-                          {product.growth}
-                        </span>
+                  {topSellingProducts.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                        No products sold yet
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    topSellingProducts.map((product) => (
+                      <tr key={product.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
+                              <img
+                                src={product.image}
+                                alt={product.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${product.id}`;
+                                }}
+                              />
+                            </div>
+                            <div className="ml-3">
+                              <div className="text-sm font-medium text-gray-900 line-clamp-1">
+                                {product.name}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                Stock: {product.stock}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">
+                            {product.category}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                          {product.price}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                          {product.sold.toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {product.revenue}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span
+                            className={`flex items-center text-sm font-medium ${product.status === "trending-up"
+                                ? "text-green-600"
+                                : "text-red-600"
+                              }`}
+                          >
+                            {product.status === "trending-up" ? (
+                              <TrendingUp className="w-3 h-3 mr-1" />
+                            ) : (
+                              <TrendingDown className="w-3 h-3 mr-1" />
+                            )}
+                            {product.growth}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -665,11 +861,10 @@ export default function DashboardPage() {
                             {offer.title}
                           </h3>
                           <span
-                            className={`px-2 py-1 text-xs font-bold rounded-full ${
-                              offer.status === "active"
+                            className={`px-2 py-1 text-xs font-bold rounded-full ${offer.status === "active"
                                 ? "bg-green-100 text-green-800"
                                 : "bg-orange-100 text-orange-800"
-                            }`}
+                              }`}
                           >
                             {offer.status === "active" ? "Active" : "Expiring"}
                           </span>

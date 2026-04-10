@@ -1,7 +1,7 @@
 // components/Layout.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
 import MobileSidebar from "./MobileSidebar";
@@ -9,9 +9,30 @@ import MobileSidebar from "./MobileSidebar";
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check if mobile on mount and on resize
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024); // lg breakpoint
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const handleToggleCollapse = () => {
     setSidebarCollapsed(!sidebarCollapsed);
+  };
+
+  // Calculate margin left for main content
+  const getMarginLeft = () => {
+    if (isMobile) {
+      return "0rem";
+    }
+    return sidebarCollapsed ? "5rem" : "16rem";
   };
 
   return (
@@ -37,7 +58,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <main
           className="pt-16 min-h-screen transition-all duration-300"
           style={{
-            marginLeft: sidebarCollapsed ? "5rem " : "16rem",
+            marginLeft: getMarginLeft(),
             transition: "margin-left 300ms ease-in-out",
           }}
         >

@@ -99,7 +99,6 @@ export default function Sidebar({
     getAllUsers();
   }, []);
 
-  console.log(users, products, orders);
 
   const mainMenuItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/admin", active: true },
@@ -167,7 +166,7 @@ export default function Sidebar({
             </div>
             {!isCollapsed && (
               <div>
-                <h1 className="text-xl font-bold text-gray-900">ShopSphere</h1>
+                <h1 className="text-xl font-bold text-gray-900">HETTY</h1>
                 <p className="text-xs text-gray-500">Admin Panel</p>
               </div>
             )}

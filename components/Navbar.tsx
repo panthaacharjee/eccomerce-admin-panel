@@ -1,7 +1,7 @@
 // components/Navbar.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   Bell,
@@ -45,7 +45,6 @@ const userNavigation = [
   { name: "Your Profile", href: "/admin", icon: User },
   { name: "Settings", href: "/admin/settings", icon: Settings },
   { name: "Help & Support", href: "/admin/help", icon: HelpCircle },
-  // { name: "Sign out", href: "/logout", icon: LogOut },
 ];
 
 interface NavbarProps {
@@ -57,12 +56,33 @@ export default function Navbar({ onMenuClick, sidebarCollapsed }: NavbarProps) {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check if mobile on mount and on resize
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 700);
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  // Calculate left position
+  const getLeftPosition = () => {
+    if (isMobile) {
+      return "0rem";
+    }
+    return sidebarCollapsed ? "5rem" : "16rem";
+  };
 
   return (
     <header
       className="fixed top-0 z-40 bg-white border-b border-gray-200 transition-all duration-300"
       style={{
-        left: sidebarCollapsed ? "5rem" : "16rem",
+        left: getLeftPosition(),
         right: 0,
         transition: "left 300ms ease-in-out",
       }}
@@ -236,9 +256,9 @@ export default function Navbar({ onMenuClick, sidebarCollapsed }: NavbarProps) {
                   ))}
                   <button
                     onClick={() => signOut()}
-                    className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors text-gray-700`}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors text-gray-700 hover:bg-gray-50"
                   >
-                    <LogOut />
+                    <LogOut className="w-4 h-4" />
                     Sign Out
                   </button>
                 </HeadlessMenu.Items>
